@@ -1,0 +1,17 @@
+{
+    "id": "BossBounties",
+    "name": "Final Project",
+    "author":[
+        "Michael Lillo"
+    ],
+    "description": "Every Boss Blind pays its own bounty. After the boss, Cash Out opens a pack with that boss's reward.",
+    "prefix": "ntgbb",
+    "main_file": "BossBounties.lua",
+    "priority": 0,
+    "badge_colour": "AD5353",
+    "version": "1.0.0",
+    "dependencies": [
+        "Steamodded (>=1.0.0~BETA-1620a)"
+    ]
+
+}
