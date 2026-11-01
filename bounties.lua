@@ -287,3 +287,13 @@ bounty {
         end
     end,
 }
+
+bounty {
+    key = 'needle', blind = 'bl_needle', boss = 'The Needle', pos = { x = 1, y = 2 },
+    text = { '{C:blue}+1{} hand, permanently' }, 
+    use = function (self, card)
+        juice(card)
+        G.GAME
+        
+    end
+}
