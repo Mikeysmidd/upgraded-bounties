@@ -168,13 +168,13 @@ suit_bounty { key = 'club',   blind = 'bl_club',   boss = 'The Club',   pos = { 
 suit_bounty { key = 'goad',   blind = 'bl_goad',   boss = 'The Goad',   pos = { x = 2, y = 0 }, suit = 'Spades',   single = 'Spade',   colour = 'spades' }
 suit_bounty { key = 'head',   blind = 'bl_head',   boss = 'The Head',   pos = { x = 3, y = 0 }, suit = 'Hearts',   single = 'Heart',   colour = 'hearts' }
 suit_bounty { key = 'window', blind = 'bl_window', boss = 'The Window', pos = { x = 4, y = 0 }, suit = 'Diamonds', single = 'Diamond', colour = 'diamonds' }
-
+--- Manacle
 bounty {
     key = 'manacle', blind = 'bl_manacle', boss = 'The Manacle', pos = { x = 5, y = 0},
     text = { '{C:attention}+1{} hand size' }, 
     use = function(self, card) juice(card); G.hand:change_size(1); delay(0.6) end,
 }
-
+--- Psychic
 bounty{
     key = 'psychic', blind = 'bl_psychic', boss = 'The Psychic', pos = { x = 6, y = 0 },
     text = { '{C:attention}+1{} card slot', 'available in the shop' },
@@ -186,7 +186,7 @@ bounty{
         delay(0.6)
     end,
 }
-
+--- Pillar
 bounty {
     key = 'pillar', blind = 'bl_pillar', boss = 'The Pillar', pos = { x = 0, y = 1 },
     text = {
@@ -208,13 +208,13 @@ local function queue_sub(kind)
     BB.saved = false
     log( 'Pack queued: ' .. kind)
 end
-
+--- House
 bounty {
     key = 'house', blind = 'bl_house', boss = 'The House', pos = { x = 1, y = 1 },
     text = { 'Open a free', '{C:attention}Mega Standard Pack{}' },
     use = function(self, card) juice(card); queue_sub('standard') end,
 }
-
+--- Wall
 bounty {
     key = 'wall', blind = 'bl_wall', boss = 'The Wall', pos = { x = 2, y = 1 },
     text = { 'Every future blind needs', '{C:attention}10%{} fewer chips', '{C:inactive}(Repeats multiply){}' },
@@ -227,7 +227,7 @@ bounty {
         delay(0.6)
     end,
 }
-
+--- Wheel
 bounty {
     key = 'wheel', blind = 'bl_wheel', boss = 'The Wheel', pos = { x = 3, y = 1 },
     text = {'Gain a {C:dark_edition}Negative{}', '{C:attention}Oops! All 6s{}' },
@@ -241,7 +241,7 @@ bounty {
         delay(0.6)
     end
 }
-
+--- Arm
 bounty {
     key = 'arm', blind = 'bl_arm', boss = 'The Arm', pos = { x = 4, y = 1 },
     text = {
@@ -257,13 +257,13 @@ bounty {
         delay(0.6)
     end,
 }
-
+--- Fish
 bounty {
     key = 'fish', blind = 'bl_fish', boss = 'The Fish', pos = { x = 5, y = 1 },
     text = { '{C:red}+1{} discard, permanently'},
     use = function (self, card) juice(card); queue_sub('arcana') end,
 }
-
+--- Water
 bounty {
     key = 'water', blind = 'bl_water', boss = 'The Water', pos = { x = 6, y = 1 },
     text = { '{C:red}+1{} discard, permanently' },
@@ -274,7 +274,7 @@ bounty {
         delay(0.6)
     end,
 }
-
+--- Mouth
 bounty {
     key = 'mouth', blind = 'bl_mouth', boss = 'The Mouth', pos = { x = 0, y = 2 },
     text = { 'The hand type you played', 'gains {C:attention}+2{} levels' },
@@ -287,13 +287,277 @@ bounty {
         end
     end,
 }
-
+--- Needle
 bounty {
     key = 'needle', blind = 'bl_needle', boss = 'The Needle', pos = { x = 1, y = 2 },
     text = { '{C:blue}+1{} hand, permanently' }, 
     use = function (self, card)
         juice(card)
-        G.GAME
-        
-    end
+        G.GAME.round_resets.hands = G.GAME.round_resets.hands + 1 
+        ease_hands_played(1)
+        delay(0.6)
+    end,
 }
+--- Mark
+bounty {
+    key = 'mark', blind = 'bl_mark', boss = 'The Mark', pos = { x = 3, y = 2 },
+    text = { 'Every Jack, Queen and King', 'in your deck gains {C:mult}+2{}', 'permanently' },
+    use = function (self, card)
+        juice(card)
+        local n = buff_cards(face_by_rank, 'perma_mult', 2)
+        log('The Mark bounty: +2 Mult on ' .. n .. ' face cards')
+        delay(0.6)
+    end,
+}
+--- Tooth
+bounty {
+    key = 'tooth', blind = 'bl_tooth', boss = 'The Tooth', pos = { x = 4, y = 2},
+    text = { 'Get back {C:money}double{} what', 'The Tooth took from you' },
+    use = function (self, card, data)
+        local n = tonumber(data.tooth) or 0
+        G.E_MANAGER:add_event(Event({ trigger = 'after', delay = 0.4, func = function ()
+            play_sound('timpani')
+            card:juice_up(0.3, 0.5)
+            if n > 0 then ease_dollars(2 * n, true) end
+            return true
+        end}))
+        log('The Tooth bounty: took $' .. n .. ', pays $' .. 2* n)
+        delay(0.6)
+    end,
+}
+--[[ Eye
+this is basically just a copy of the black hole, planet card
+]]
+bounty {
+    key = 'eye', blind = 'bl_eye', boss = 'The Eye', pos = { x = 5, y = 2},
+    text = { '{C:attention}+1{} level to', 'every poker hand' },
+    use = function (self, card)
+        update_hand_text({ sound = 'button', volume = 0.7, pitch = 0.8, delay = 0.3 }, { handname = localize('k_all_hands'), chips = '...', mult = '...', level = '' })
+        G.E_MANAGER:add_event(Event({ trigger = 'after', delay = 0.2, func = function()
+            play_sound('tarot1'); card:juice_up(0.8, 0.5); G.TAROT_INTERRUPT_PULSE = true; return true end }))
+        update_hand_text({ delay = 0 }, { mult = '+', StatusText = true })
+        G.E_MANAGER:add_event(Event({ trigger = 'after', delay = 0.9, func = function()
+            play_sound('tarot1'); card:juice_up(0.8, 0.5); return true end }))
+        update_hand_text({ delay = 0 }, { chips = '+', StatusText = true })
+        G.E_MANAGER:add_event(Event({ trigger = 'after', delay = 0.9, func = function()
+            play_sound('tarot1'); card:juice_up(0.8, 0.5); G.TAROT_INTERRUPT_PULSE = nil; return true end }))
+        update_hand_text({ sound = 'button', volume = 0.7, pitch = 0.9, delay = 0 }, { level = '+1' })
+        delay(1.3)
+        for k, _ in pairs(G.GAME.hands) do level_up_hand(card, k, true) end
+        update_hand_text({ sound = 'button', volume = 0.7, pitch = 1.1, delay = 0 }, { mult = 0, chips = 0, handname = '', level = '' })
+    end,
+}
+--- Plant
+bounty {
+    key = 'plant', blind = 'bl_plant', boss = 'The Plant', pos = { x = 6, y = 2},
+    text = { 'Every Jack, Queen, and King', 'in your deck gains {C:chips}+20{} Chips', 'permanently' }, 
+    use = function (self, card)
+        juice(card)
+        local n = buff_cards(face_by_rank, 'perma_bonus', 20)
+        log('The Plant bounty: +20 chips on ' .. n .. ' face cards')
+        delay(0.6)
+    end,
+}
+--- Ox
+bounty {
+    key = 'ox', blind = 'bl_ox', boss = 'The Ox', pos = { x = 1, y = 3}, 
+    text = { '{C:money}+$5{} maximum interest', 'per round', '{C:inactive}(Interest cap +$25){}' },
+    use = function (self, card)
+        juice(card, 'timpani')
+        local st = run_state()
+        st.interest_bonus = st.interest_bonus + 25
+        G.GAME.interest_cap = (G.GAME.interest_cap or 25) + 25
+        log('The Ox bounty: interest cap now ' .. G.GAME.interest_cap)
+        delay(0.6)
+    end,
+}
+--[[ Leaf
+basically another antimatter.
+]]
+bounty {
+    key = 'leaf', blind = 'bl_final_leaf', boss = 'Verdant Leaf', pos = { x = 5, y = 3 },
+    text = { '{C:dark_edition}+1{} Joker slot' },
+    use = function (self, card)
+        juice(card)
+        G.E_MANAGER:add_event(Event({ func = function ()
+           if G.jokers then G.jokers.config.card_limit = G.jokers.config.card_limit + 1 end
+           return true
+        end}))
+        delay(0.6)
+    end,
+}
+--[[ Vessel
+gives a free soul card (aka legendary jonkler)
+]]
+bounty {
+    key = 'vessel', blind = 'bl_final_vessel', boss = 'Violet Vessel', pos = { x = 6, y = 3 },
+    text = {
+        'Gain a {C:dark_edition}Negative{} {C:spectral} The Soul{}.',
+        'Its {C:legendary,E:1}legendary{} is {C:dark_edition}Negative{} too', 
+        '{C:inactive}(Usable with a full Joker){}',
+    },
+    use = function (self, card)
+        G.E_MANAGER:add_event(Event({ trigger = 'after', delay = 0.4, func = function ()
+            play_sound('timpani')
+            local soul = SMODS.add_card({ key = 'c_soul', area = G.consumables, edition = 'e_negative' })
+            soul.ability.ntgbb_vessel = true
+            card:juice_up(0.3, 0.5)
+            return true
+        end }))
+        delay(0.6)
+    end,
+}
+
+local LIGHT = HEX('F4C2C2')
+local PICKERS = {}
+
+local function hand_name(hand) return localize(hand, 'poker_hands') end
+
+local function describe_front(key)
+    local f = G.P_CARDS[key]
+    if not f then return tostring(key) end
+    local ok1, r = pcall(localize, f.value, 'ranks')
+    local ok2, r = pcall(localize, f.suit, 'suits_plural')
+    r = (ok1 and type(r) == 'string' and r ~= 'ERROR') and r or f.value
+    s = (ok2 and type(s) == 'string' and s ~= 'ERROR') and s or f.suit
+    return r .. ' of ' .. s
+end
+
+local function picker_status()
+    local P = BB.picker
+    if not P then return end
+    local kind = P.spec.kind
+    if kind == 'deck' then
+        P.status = P.count .. ' / ' .. P.spec.max .. ' selected'
+    elseif kind == 'hand' then
+        local h = P.hand and G.GAME.hands[P.hand]
+        P.status = h and (hand_name(P.hand) .. ': level ' .. (h.level or 1) .. ' -> ' .. 2 * (h.level or 1)) or 'Pick a poker hand'
+    elseif kind == 'serpent' then
+        local n = 0
+        for i = 1, #P.fronts do if P.enh[i] then n = n + 1 end end
+        P.status = n .. ' / ' .. #P.fronts .. ' chosen'
+    end
+end
+
+local function picker_valid(P)
+    if not P then return false end
+    local kind = P.spec.kind
+    if kind == 'deck' then return P.count >= P.spec.min and P.count <= P.spec.max end
+    if kind == 'hand' then return P.hand ~= nil and G.GAME.hands[P.hand] ~= nil end
+    if kind == 'serpent' then
+        if #P.fronts == 0 then return false end
+        for i = 1, #P.fronts do if not (P.enh[i] and G.P_CENTERS[P.enh[i]]) then return false end end
+        return true
+    end
+    return false
+end
+
+local function row_can_highlight(self, card) return BB.picker ~= nil end
+local function row_unhighlight_all(self) end
+
+local function row_add(self, card, silent)
+    local P = BB.picker
+    local orig = card.ntgbb_orig
+    if not (P and orig) or P.selected[orig] then return end
+    if P.spec.max == 1 then
+        for _, row in ipairs(P.rows or {}) do
+            for i = #row.highlighted, 1, -1 do
+                local h = row.highlighted[i]
+                table.remove(row.highlighted, i)
+                h:highlight(false)
+            end
+        end
+        P.selected, P.count = {}, 0
+    elseif P.count >= P.spec.max then
+        card:highlight(false)
+        return
+    end
+    self.highlighted[#self.highlighted + 1] = card
+    card:highlight(true)
+    P.selected[orig] = true
+    P.count = P.count + 1
+    picker_status()
+    if not silent then play_sound('cardSlide1') end
+end
+
+local function row_remove(self, card, force)
+    for i = #self.highlighted, 1, -1 do
+        if self.highlighted[i] == card then table.remove(self.highlighted, i); break end
+    end
+    card:highlight(false)
+    local P = BB.picker
+    if not force and P and card.ntgbb_orig and P.selected[card.ntgbb_orig] then
+        P.selected[card.ntgbb_orig] = nil
+        P.count = P.count - 1
+        picker_status()
+    end
+end
+
+local function picker_rows()
+    local P = BB.picker
+    local by_suit, suit_order = {}, {}
+    for i = #SMODS.Suit.obj_buffer, 1, -1 do
+        local s = SMODS.Suit.obj_buffer[i]
+        by_suit[s] = {}
+        suit_order[#suit_order + 1] = s
+    end
+    local cards = {}
+    for _, c in ipairs(G.playing_cards) do cards[#cards + 1] = c end
+    table.sort(cards, function(a, b) return a:get_nominal('suit') > b:get_nominal('suit') end)
+    for _, c in ipairs(cards) do
+        if c.base.suit and by_suit[c.base.suit] then table.insert(by_suit[c.base.suit], c) end
+    end
+    local visible = {}
+    for _, s in ipairs(suit_order) do if by_suit[s][1] then visible[#visible + 1] = s end end
+    P.pages = math.max(1, math.ceil(#visible / 4))
+    P.page = math.min(P.page or 1, P.pages)
+    P.rows = {}
+    local rows = {}
+    for j = (P.page - 1) * 4 + 1, math.min(#visible, P.page * 4) do
+        local list = by_suit[visible[j]]
+        local area = CardArea(G.ROOM.T.x + 0.2 * G.ROOM.T.w / 2, G.ROOM.T.h, 6.5 * G.CARD_W, 0.6 * G.CARD_H, {
+            card_limit = #list, type = 'title', view_deck = true, highlight_limit = P.spec.max,
+            card_w = G.CARD_W * 0.7, draw_layers = { 'card' }, negative_info = 'playing_card',
+        })
+        area.can_highlight = row_can_highlight
+        area.add_to_highlighted = row_add
+        area.remove_from_highlighted = row_remove
+        area.unhighlight_all = row_unhighlight_all
+        for _, orig in ipairs(list) do
+            local copy = copy_card(orig, nil, 0.7)
+            copy.ntgbb_orig = orig
+            copy.T.x = area.T.x + area.T.w / 2
+            copy.T.y = area.T.y
+            copy:hard_set_T()
+            area:emplace(copy)
+            if P.selected[orig] then
+                area.highlighted[#area.highlighted + 1] = copy
+                copy:highlight(true)
+            end
+        end
+        P.rows[#P.rows + 1] = area
+        rows[#rows + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0 }, nodes = { { n = G.UIT.O, config = { object = area } } } }
+    end
+    return rows
+end
+
+local function picker_body()
+    local P = BB.picker
+    local nodes = {
+        { n = G.UIT.R, config = { align = 'cm' }, nodes = {
+            { n = G.UIT.C, config = { align = 'cm', padding = 0.1, r = 0.1, colour = G.C.BLACK, emboss = 0.05 }, nodes = picker_rows() },
+        } },
+    }
+    if P.pages > 1 then
+        local options = {}
+        for i = 1, P.pages do options[i] = localize('k_page') .. ' ' .. i .. '/' .. P.pages end
+        nodes[#nodes + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = {
+            create_option_cycle({
+                options = options, w = 4.5, cycle_shoulders = true, opt_callback = 'ntgbb_picker_page',
+                current_option = P.page, colour = BOSS_RED, no_pips = true, focus_args = { snap_to = true, nav = 'wide' },
+            }),
+        } }
+    end
+    return { n = G.UIT.ROOT, config = { align = 'cm', colour = G.C.CLEAR }, nodes = nodes }
+end
+
