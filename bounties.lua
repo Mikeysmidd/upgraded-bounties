@@ -561,3 +561,83 @@ local function picker_body()
     return { n = G.UIT.ROOT, config = { align = 'cm', colour = G.C.CLEAR }, nodes = nodes }
 end
 
+local function idle_colour() return darken(G.C.JOKER_GREY, 0.1) end
+
+local function visible_hands()
+    local out = {}
+    for _, h in ipairs(G.handlist or {}) do
+        if G.GAME.hands[h] and SMODS.is_poker_hand_visible(h) then out[#out+1] = h end
+    end
+    return out
+end
+
+local function chips_mult(chips, mult)
+    return { n = G.UIT.C, config = { align = 'cm', padding = 0.05, colour = G.C.BLACK, r = 0.1 }, nodes = {
+        { n = G.UIT.C, config = { align = 'cr', padding = 0.01, r = 0.1, colour = G.C.CHIPS, minw = 1.1 }, nodes = {
+            { n = G.UIT.T, config = { text = number_format(chips, 1000000), scale = 0.4, colour = G.C.UI.TEXT_LIGHT } },
+            { n = G.UIT.B, config = { w = 0.08, h = 0.01 } },
+        } },
+        { n = G.UIT.T, config = { text = 'X', scale = 0.4, colour = G.C.MULT } },
+        { n = G.UIT.C, config = { align = 'cl', padding = 0.01, r = 0.1, colour = G.C.MULT, minw = 1.1 }, nodes = {
+            { n = G.UIT.B, config = { w = 0.08, h = 0.01 } },
+            { n = G.UIT.T, config = { text = number_format(mult, 1000000), scale = 0.4, colour = G.C.UI.TEXT_LIGHT } },
+        } },
+    } }
+end
+
+local function level_pill(level)
+    return { n = G.UIT.C, config = { align = 'cm', padding = 0.01, r = 0.1, minw = 1.1, outline = 0.8, outline_colour = G.C.WHITE,
+        colour = G.C.HAND_LEVELS[math.max(0, math.min(7, level))] }, nodes = {
+        { n = G.UIT.T, config = { text = localize('k_level_prefix') .. level, scale = 0.4, colour = G.C.UI.TEXT_DARK } },
+    } }
+end
+
+local function hand_row(hand)
+    local h = G.GAME.hands[hand]
+    local level = h.level or 1
+    return { n = G.UIT.R, config = { align = 'cm', padding = 0.05, r = 0.1, emboss = 0.05, hover = true, shadow = true,
+        colour = idle_colour(), button = 'ntgbb_pick_hand', func = 'ntgbb_hand_row', ntgbb_hand = hand,
+        on_demand_tooltip = { text = localize(hand, 'poker_hand_descriptions'), filler = { func = create_UIBox_hand_tip, args = hand } } }, nodes = {
+        level_pill(level),
+        { n = G.UIT.C, config = { align = 'cl', minw = 3.6, maxw = 3.6 }, nodes = {
+            { n = G.UIT.T, config = { text = '  ' .. hand_name(hand), scale = 0.4, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+        } },
+        chips_mult(h.chips, h.mult),
+        { n = G.UIT.C, config = { align = 'cm', minw = 0.6 }, nodes = {
+            { n = G.UIT.T, config = { text = '->', scale = 0.4, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+        } },
+        level_pill(level * 2),
+        chips_mult(h.chips * 2, h.mult * 2),
+    } }
+end
+
+local function hand_body()
+    local hands = visible_hands()
+    local per_col = #hands > 12 and math.ceil(#hands / 2) or #hands
+    local cols = {}
+    for i, hand in ipairs(hands) do
+        local c = math.ceil(i / per_col)
+        cols[c] = cols[c] or { n = G.UIT.C, config = { align = 'tm', padding = 0.05 }, nodes = {} }
+        table.insert(cols[c].nodes, hand_row(hand))
+    end
+    return { n = G.UIT.C, config = { align = 'cm', padding = 0.1, r = 0.1, colour = G.C.BLACK, emboss = 0.05 }, nodes = {
+        { n = G.UIT.R, config = { align = 'cm' }, nodes = cols },
+    } }
+end
+
+G.FUNCS.ntgbb_hand_row = function(e)
+    local P = BB.picker
+    e.config.colour = (P and P.hand == e.config.ntgbb_hand) and BOSS_RED or idle_colour()
+end
+
+G.FUNCS.ntgbb_pick_hand = function(e)
+    local P = BB.picker
+    if not (P and e.config.ntgbb_hand) then return end
+    P.hand = e.config.ntgbb_hand
+    picker_status()
+end
+
+local function enh_add(self, card, silent)
+    local P = BB.picker
+    if not (P and card.ntgbb_enh and card.ntgbb_row) then return end
+    for i = #self.highlighted, 1, -1
