@@ -640,4 +640,272 @@ end
 local function enh_add(self, card, silent)
     local P = BB.picker
     if not (P and card.ntgbb_enh and card.ntgbb_row) then return end
-    for i = #self.highlighted, 1, -1
+    for i = #self.highlighted, 1, -1 do
+        local h = self.highlighted[i]
+        table.remove(self.highlighted, i)
+        h:highlight(false)
+    end
+    self.highlighted[#self.highlighted+1] = card
+    card:highlight(true)
+    P.enh[card.ntgbb_row] = card.ntgbb_enh
+    picker_status()
+    if not silent then play_sound('cardSlide1') end
+end
+
+local function enh_remove(self, card, force)
+    for i = #self.highlighted, 1, -1 do
+        if self.highlighted[i] == card then table.remove(self.highlighted, i); break end
+    end
+    card:highlight(false)
+    local P = BB.picker
+    if not force and P and card.ntgbb_row and P.enh[card.ntgbb_row] == card.ntgbb_enh then
+        P.enh[card.ntgbb_row] = nil
+        picker_status()
+    end
+end
+
+local function enhancement_keys()
+    local t = {}
+    for _, center in ipairs(G.P_CENTER_POOLS.Enhanced or {}) do
+        if center.key and G.P_CENTERS[center.key] then t[#t + 1] = center.key end
+    end
+    return t
+end
+
+local function serpent_body()
+    local P = BB.picker
+    local enhs = enhancement_keys()
+    local rows = {}
+    P.rows = {}
+    for i, fk in ipairs(P.fronts) do
+        local area = CardArea(G.ROOM.T.x + 0.2 * G.ROOM.T.w / 2, G.ROOM.T.h, math.max(1, #enhs) * G.CARD_W * 0.75, 0.75 * G.CARD_H, {
+            card_limit = math.max(1, #enhs), type = 'title', highlight_limit = 1,
+            card_w = G.CARD_W * 0.7, draw_layers = { 'card' },
+        })
+        area.can_highlight = row_can_highlight
+        area.add_to_highlighted = enh_add
+        area.remove_from_highlighted = enh_remove
+        area.unhighlight_all = row_unhighlight_all
+        for _, ek in ipairs(enhs) do
+            local c = Card(area.T.x + area.T.w / 2, area.T.y, G.CARD_W * 0.7, G.CARD_H * 0.7, G.P_CARDS[fk], G.P_CENTERS[ek])
+            c.ntgbb_enh, c.ntgbb_row = ek, i
+            area:emplace(c)
+            if P.enh[i] == ek then
+                area.highlighted[#area.highlighted + 1] = c
+                c:highlight(true)
+            end
+        end
+        P.rows[#P.rows + 1] = area
+        rows[#rows + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.03 }, nodes = {
+            { n = G.UIT.C, config = { align = 'cm', minw = 2.2 }, nodes = {
+                { n = G.UIT.T, config = { text = describe_front(fk), scale = 0.38, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+            } },
+            { n = G.UIT.O, config = { object = area } },
+        } }
+    end
+    return { n = G.UIT.C, config = { align = 'cm', padding = 0.1, r = 0.1, colour = G.C.BLACK, emboss = 0.05 }, nodes = rows }
+end
+
+local function text_row_light(text)
+    return { n = G.UIT.R, config = { align = 'cm', padding = 0.02 }, nodes = {
+        { n = G.UIT.T, config = { text = text, scale = 0.35, colour = G.C.UI.TEXT_LIGHT } },
+    } }
+end
+
+local function picker_button(label, scale, minh, colour, button, func)
+    return { n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = {
+        { n = G.UIT.C, config = { align = 'cm', minw = 2.8, minh = minh, padding = 0.1, r = 0.1, hover = true, shadow = true,
+            colour = colour, button = button, func = func }, nodes = {
+            { n = G.UIT.T, config = { text = label, scale = scale, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+        } },
+    } }
+end
+
+local function picker_definition()
+    local P = BB.picker
+    local info = { n = G.UIT.C, config = { align = 'cm', padding = 0.1, minw = 3.4 }, nodes = {
+        { n = G.UIT.R, config = { align = 'cm', padding = 0.08 }, nodes = {
+            { n = G.UIT.T, config = { text = P.spec.title, scale = 0.6, colour = G.C.WHITE, shadow = true } },
+        } },
+        text_row_light(P.spec.line1),
+        text_row_light(P.spec.line2),
+        { n = G.UIT.R, config = { align = 'cm', padding = 0.15 }, nodes = {
+            { n = G.UIT.T, config = { ref_table = P, ref_value = 'status', scale = 0.4, colour = LIGHT, shadow = true } },
+        } },
+        --- v1: built WITH its button, cleared by the func while the choice is not valid
+        --- (an element only becomes clickable if built with a button, dump/engine/ui.lua:391).
+        picker_button('Confirm', 0.5, 0.75, G.C.UI.BACKGROUND_INACTIVE, 'ntgbb_picker_confirm', 'ntgbb_picker_can_confirm'),
+        picker_button(localize('b_back'), 0.45, 0.6, G.C.ORANGE, 'ntgbb_picker_back', nil),
+    } }
+    local body
+    if P.spec.kind == 'hand' then
+        body = hand_body()
+    elseif P.spec.kind == 'serpent' then
+        body = serpent_body()
+    else
+        body = { n = G.UIT.O, config = { id = 'ntgbb_picker_body', object = UIBox {
+            definition = picker_body(), config = { offset = { x = 0, y = 0 }, align = 'cm' },
+        } } }
+    end
+    return create_UIBox_generic_options({
+        no_back = true,
+        outline_colour = BOSS_RED,
+        contents = {
+            { n = G.UIT.R, config = { align = 'cm' }, nodes = {
+                info,
+                { n = G.UIT.B, config = { w = 0.2, h = 0.1 } },
+                { n = G.UIT.C, config = { align = 'cm' }, nodes = { body } },
+            } },
+        },
+    })
+end
+
+-- continue of the serpent
+local function roll_serpent()
+    local t = {}
+    for i = 1, 3 do
+        local _, key = pseudorandom_element(G.P_CARDS, pseudoseed('ntgbb_serp'))
+        t[#t + 1] = key
+    end
+    return t
+end
+
+function BB.open_picker(card, spec)
+    BB.picker = { card = card, spec = spec, selected = {}, count = 0, page = 1, enh = {}, fronts = {} }
+    if spec.kind == 'serpent' then
+        local e = open_entry()
+        if e then
+            e.data = e.data or {}
+            if not (type(e.data.fronts) == 'table' and e.data.fronts[1]) then e.data.fronts = roll_serpent() end
+            for _, fk in ipairs(e.data.fronts) do
+                if G.P_CARDS[fk] then BB.picker.fronts[#BB.picker.fronts + 1] = fk end
+            end
+            --- A saved card that no longer exists (a removed rank or suit mod) would leave
+            --- a screen that can never confirm: roll again and keep the new roll.
+            if #BB.picker.fronts == 0 then
+                e.data.fronts = roll_serpent()
+                for _, fk in ipairs(e.data.fronts) do BB.picker.fronts[#BB.picker.fronts + 1] = fk end
+            end
+        end
+    end
+    picker_status()
+    G.SETTINGS.paused = true
+    --- As View Deck does (smods/src/overrides.lua:908); closing clears it
+    G.VIEWING_DECK = true
+    G.FUNCS.overlay_menu { definition = picker_definition(), config = { no_esc = true } }
+    log('Picker opened: ' .. spec.title)
+end
+
+G.FUNCS.ntgbb_picker_page = function(args)
+    local P = BB.picker
+    if not (P and args and args.to_key) then return end
+    P.page = args.to_key
+    local holder = G.OVERLAY_MENU and G.OVERLAY_MENU:get_UIE_by_ID('ntgbb_picker_body')
+    if not holder then return end
+    if holder.config.object then holder.config.object:remove() end
+    holder.config.object = UIBox {
+        definition = picker_body(), config = { offset = { x = 0, y = 0 }, align = 'cm', parent = holder },
+    }
+    holder.UIBox:recalculate()
+end
+
+G.FUNCS.ntgbb_picker_can_confirm = function(e)
+    if picker_valid(BB.picker) then
+        e.config.colour = BOSS_RED
+        e.config.button = 'ntgbb_picker_confirm'
+    else
+        e.config.colour = G.C.UI.BACKGROUND_INACTIVE
+        e.config.button = nil
+    end
+end
+
+G.FUNCS.ntgbb_picker_back = function(e)
+    BB.picker = nil
+    G.FUNCS.exit_overlay_menu()
+    log('Picker: Back')
+end
+
+G.FUNCS.ntgbb_picker_confirm = function(e)
+    local P = BB.picker
+    if not picker_valid(P) then return end
+    local picked = { card = P.card }
+    if P.spec.kind == 'deck' then
+        picked.cards = {}
+        for _, c in ipairs(G.playing_cards) do
+            if P.selected[c] then picked.cards[#picked.cards + 1] = c end
+        end
+    elseif P.spec.kind == 'hand' then
+        picked.hand = P.hand
+    elseif P.spec.kind == 'serpent' then
+        picked.fronts, picked.enh = {}, {}
+        for i, fk in ipairs(P.fronts) do picked.fronts[i] = fk; picked.enh[i] = P.enh[i] end
+    end
+    local card = P.card
+    BB.picker = nil
+    G.FUNCS.exit_overlay_menu()
+    if not (card and G.pack_cards and card.area == G.pack_cards) then
+        log('Picker: the bounty card is gone, nothing applied')
+        return
+    end
+    BB.picked = picked
+    G.FUNCS.use_card({ config = { ref_table = card } })
+end
+
+--- The choice Confirm handed to this card's use(). 
+local function take_pick(card)
+    local p = BB.picked
+    BB.picked = nil
+    if p and p.card == card then return p end
+end
+
+local function take_picks(card)
+    local p = take_pick(card)
+    local alive = {}
+    if not (p and p.cards) then return alive end
+    for _, c in ipairs(p.cards) do
+        if not c.removed then
+            for _, pc in ipairs(G.playing_cards) do
+                if pc == c then alive[#alive + 1] = c; break end
+            end
+        end
+    end
+    return alive
+end
+
+local function describe_cards(cards)
+    local names = {}
+    for i, c in ipairs(cards) do names[i] = tostring(c.base and c.base.value) .. ' of ' .. tostring(c.base and c.base.suit) end
+    return table.concat(names, ', ')
+end
+
+function BB.wrap_use_card()
+    if BB.use_card_wrapped then return end
+    BB.use_card_wrapped = true
+    local ref_use_card = G.FUNCS.use_card
+    G.FUNCS.use_card = function(e, mute, nosave)
+        local card = e and e.config and e.config.ref_table
+        local spec = card and card.config and card.config.center and PICKERS[card.config.center.key]
+        if spec and G.pack_cards and card.area == G.pack_cards and not (BB.picked and BB.picked.card == card) then
+            --- The Use button is one-press; hand it back for after Back.
+            e.disable_button = nil
+            BB.open_picker(card, spec)
+            return
+        end
+        return ref_use_card(e, mute, nosave)
+    end
+end
+
+local PICKER_CAN_USE = {
+    deck = function() return G.playing_cards and G.playing_cards[1] and true or false end,
+    hand = function() return G.handlist and G.GAME and G.GAME.hands and true or false end,
+    serpent = function() return true end,
+}
+
+local function picker_bounty(def)
+    def.picker.kind = def.picker.kind or 'deck'
+    PICKERS['c_ntgbb_' .. def.key] = def.picker
+    local can = PICKER_CAN_USE[def.picker.kind]
+    def.can_use = function(self, card) return can() end
+    bounty(def)
+end
+
